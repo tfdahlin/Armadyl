@@ -32,20 +32,24 @@ class BaseHandler(PycnicHandler):
         return json_response
 
     def parse_form_data(self):
-        """Processes multipart/form-data requests into a list.
+        """Processes multipart/form-data requests into a dict.
+
+        Keys of the dict are field names. Each value is a dict with a
+        'metadata' and 'data' dict. Metadata contains metadata about the
+        field, data is the actual input data.
 
         Return format:
-        [
-            {
+        {
+            '<field name>': {
                 'metadata': {
                     key: value  # e.g. 'name': 'username'
                 },
                 'data': Bytes  # e.g. b'Crash Override'
             },
             ...
-        ]
+        }
         """
-        result = []
+        result = {}
 
         content_body = self.request.body
         marker = content_body.split(b'\r\n', 1)[0]
@@ -72,7 +76,9 @@ class BaseHandler(PycnicHandler):
                 curr_element['metadata'][key] = value
 
             curr_element['data'] = element[1]
-            result.append(curr_element)
+            element_name = curr_element['metadata']['name']
+            result[element_name] = curr_element
+            #result.append(curr_element)
 
         return result
 
