@@ -103,7 +103,7 @@ class ServeFile(BaseHandler):
         Raises:
             OSError, if file could not be opened.
         """
-        if isinstance(filelike, (str, bytes, os.Pathlike, int)):
+        if isinstance(filelike, (str, bytes, os.PathLike, int)):
             file_size = os.path.getsize(filelike)
             opened_file = open(filelike, 'rb')
         elif isinstance(filelike, io.IOBase):
