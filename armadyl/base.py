@@ -1,4 +1,6 @@
-import re, os
+import io
+import os
+import re
 from wsgiref.util import FileWrapper
 
 from pycnic.core import Handler as PycnicHandler
@@ -88,7 +90,7 @@ class JsonEndpoint(BaseHandler):
 
 
 class ServeFile(BaseHandler):
-    def get_wrapper(self, filepath, blksize=8192, offset=0, length=None):
+    def get_wrapper(self, filelike, blksize=8192, offset=0, length=None):
         """Fetches either a wsgi FileWrapper or a RangeFileWrapper.
 
         As a side effect, this will also automatically set the Content-Length
@@ -101,7 +103,14 @@ class ServeFile(BaseHandler):
         Raises:
             OSError, if file could not be opened.
         """
-        file_size = os.path.getsize(filepath)
+        if isinstance(filelike, (str, bytes, os.Pathlike, int)):
+            file_size = os.path.getsize(filelike)
+            opened_file = open(filelike, 'rb')
+        elif isinstance(filelike, io.IOBase):
+            file_size = filelike.getbuffer().nbytes
+            opened_file = filelike
+        else:
+            raise Exception('Unhandled filelike')
 
         range_re = re.compile(r'bytes\s*=\s*(\d+)\s*-\s*(\d*)', re.I)
         self.response.set_header('Accept-Ranges', 'bytes')
@@ -133,10 +142,10 @@ class ServeFile(BaseHandler):
                 f'bytes {first_byte}-{last_byte}/{file_size}'
             )
             self.response.status_code = 206
-            wrapper = RangeFileWrapper(open(filepath, 'rb'), offset=first_byte, length=length)
+            wrapper = RangeFileWrapper(opened_file, offset=first_byte, length=length)
             return wrapper
         else:
             self.response.set_header('Content-Length', str(file_size))
             self.response.status_code = 200
-            wrapper = FileWrapper(open(filepath, 'rb'))
+            wrapper = FileWrapper(opened_file)
             return wrapper
